@@ -1,0 +1,99 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # dispara sempre que você der push em uma tag do tipo v0.1.0
+
+permissions:
+  contents: write   # necessário para criar Release e anexar arquivos
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Get version from tag
+        id: version
+        run: |
+          # GITHUB_REF_NAME vem como "v0.1.0"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Versão detectada: $VERSION"
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          echo "Rodando build no SO: $RUNNER_OS"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pyinstaller --name "ContratosMusicais-${APP_VERSION}-win" \
+                        --onefile \
+                        --windowed \
+                        --add-data "templates;templates" \
+                        contracts.py
+          else
+            pyinstaller --name "ContratosMusicais-${APP_VERSION}-mac" \
+                        --onefile \
+                        --windowed \
+                        --add-data "templates:templates" \
+                        contracts.py
+          fi
+
+      - name: Package artifact (zip)
+        shell: bash
+        run: |
+          cd dist
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            ZIP_NAME="ContratosMusicais-${APP_VERSION}-Windows.zip"
+          else
+            ZIP_NAME="ContratosMusicais-${APP_VERSION}-macOS.zip"
+          fi
+          zip -r "$ZIP_NAME" .
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ContratosMusicais-${{ env.APP_VERSION }}-${{ runner.os }}
+          path: dist/${{ env.ZIP_NAME }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: List artifacts (debug)
+        run: |
+          echo "Artifacts baixados:"
+          ls -R ./artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/ContratosMusicais-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
