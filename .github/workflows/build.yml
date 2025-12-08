@@ -3,10 +3,10 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*.*.*'   # dispara sempre que você der push em uma tag do tipo v0.1.0
+      - 'v*.*.*'
 
 permissions:
-  contents: write   # necessário para criar Release e anexar arquivos
+  contents: write
 
 jobs:
   build:
@@ -32,8 +32,8 @@ jobs:
 
       - name: Get version from tag
         id: version
+        shell: bash
         run: |
-          # GITHUB_REF_NAME vem como "v0.1.0"
           VERSION="${GITHUB_REF_NAME#v}"
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "Versão detectada: $VERSION"
