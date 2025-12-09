@@ -62,10 +62,12 @@ jobs:
           cd dist
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             ZIP_NAME="ContratosMusicais-${APP_VERSION}-Windows.zip"
+            # Usa PowerShell para compactar no Windows
+            powershell.exe -Command "Compress-Archive -Path * -DestinationPath $ZIP_NAME -Force"
           else
             ZIP_NAME="ContratosMusicais-${APP_VERSION}-macOS.zip"
+            zip -r "$ZIP_NAME" .
           fi
-          zip -r "$ZIP_NAME" .
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Upload artifact
